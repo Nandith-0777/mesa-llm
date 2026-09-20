@@ -1,3 +1,5 @@
+import gc
+import weakref
 from unittest.mock import Mock
 
 import pytest
@@ -25,7 +27,7 @@ class TestToolManager:
         # Clear global registry to start fresh
         _GLOBAL_TOOL_REGISTRY.clear()
         _TOOL_CALLBACKS.clear()
-        # Clear instances list
+        # Clear instances registry
         ToolManager.instances.clear()
 
     def teardown_method(self):
@@ -1256,3 +1258,13 @@ class TestToolManager:
         assert len(result) == 1
         assert result[0]["tool_call_id"] == "call_async"
         assert "Async: hello" in result[0]["response"]
+
+
+def test_tool_manager_can_be_garbage_collected():
+    manager = ToolManager()
+    manager_ref = weakref.ref(manager)
+
+    del manager
+    gc.collect()
+
+    assert manager_ref() is None

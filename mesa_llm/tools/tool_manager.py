@@ -6,6 +6,7 @@ import inspect
 import json
 import logging
 import warnings
+import weakref
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, get_type_hints
 
@@ -31,7 +32,7 @@ class ToolManager:
 
     Attributes:
         - tools: A dictionary of tools of the form {tool_name: tool_function}. E.g. {"get_current_weather": get_current_weather}.
-        - **instances** (class-level list) - ToolManager instances.
+        - **instances** (class-level weak set) - ToolManager instances.
 
     Methods:
         - **register(fn)** - Register tool function to this manager
@@ -49,14 +50,14 @@ class ToolManager:
         6. **Result Handling**: Tool outputs are captured and added to agent memory for future reasoning
     """
 
-    instances: ClassVar[list["ToolManager"]] = []
+    instances: ClassVar[weakref.WeakSet["ToolManager"]] = weakref.WeakSet()
 
     def __init__(
         self,
         tools: list[ToolRef] | tuple[ToolRef, ...] | None = None,
         extra_tools: dict[str, Callable] | None = None,
     ):
-        ToolManager.instances.append(self)
+        ToolManager.instances.add(self)
         self.tools: dict[str, Callable] = {}
 
         if tools is not None:
