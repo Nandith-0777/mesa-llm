@@ -32,7 +32,7 @@ class ToolManager:
 
     Attributes:
         - tools: A dictionary of tools of the form {tool_name: tool_function}. E.g. {"get_current_weather": get_current_weather}.
-        - **instances** (class-level weak set) - ToolManager instances.
+        - **instances** (class-level weak set) - ToolManager instances. Managers are dropped automatically once nothing else references them.
 
     Methods:
         - **register(fn)** - Register tool function to this manager
@@ -50,14 +50,13 @@ class ToolManager:
         6. **Result Handling**: Tool outputs are captured and added to agent memory for future reasoning
     """
 
-    instances: ClassVar[weakref.WeakSet["ToolManager"]] = weakref.WeakSet()
+    instances: ClassVar["weakref.WeakSet[ToolManager]"] = weakref.WeakSet()
 
     def __init__(
         self,
         tools: list[ToolRef] | tuple[ToolRef, ...] | None = None,
         extra_tools: dict[str, Callable] | None = None,
     ):
-        ToolManager.instances.add(self)
         self.tools: dict[str, Callable] = {}
 
         if tools is not None:
@@ -70,6 +69,10 @@ class ToolManager:
                 stacklevel=2,
             )
             self.tools.update(extra_tools)
+
+        # Registered last, once the manager is fully built, so a concurrent
+        # add_tool_to_all() snapshot never observes a half-constructed instance.
+        ToolManager.instances.add(self)
 
     def register(self, fn: Callable):
         """Register a tool function by name"""
@@ -84,7 +87,16 @@ class ToolManager:
     @classmethod
     def add_tool_to_all(cls, fn: Callable):
         """Add a tool to all instances"""
-        for instance in cls.instances:
+        while True:
+            try:
+                snapshot = list(cls.instances)
+                break
+            except RuntimeError:
+                # A new ToolManager was added to the WeakSet by another
+                # thread while we were copying it out; retry the snapshot.
+                continue
+
+        for instance in snapshot:
             instance.register(fn)
 
     def _get_tool_schema(self, tool: ToolRef, schema_name: str | None = None) -> dict:
