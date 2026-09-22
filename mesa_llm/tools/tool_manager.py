@@ -57,6 +57,21 @@ class ToolManager:
         tools: list[ToolRef] | tuple[ToolRef, ...] | None = None,
         extra_tools: dict[str, Callable] | None = None,
     ):
+        """Create a manager and (optionally) register its initial tools.
+
+        Args:
+            tools: Explicit tool callables or registered tool names to
+                configure on this manager. Omit or pass ``None`` for a
+                manager that starts with no tools.
+            extra_tools: Deprecated. Use ``tools=`` instead.
+
+        The instance is added to the class-level weak registry
+        (:attr:`instances`) only after it is fully constructed, so a
+        concurrent :meth:`add_tool_to_all` snapshot never observes a
+        half-built manager. Because the registry holds weak references,
+        the manager is eligible for garbage collection as soon as nothing
+        else references it.
+        """
         self.tools: dict[str, Callable] = {}
 
         if tools is not None:

@@ -1261,6 +1261,12 @@ class TestToolManager:
 
 
 def test_tool_manager_can_be_garbage_collected():
+    """Regression test for #336.
+
+    A ToolManager with no other referents must be collectible once it is
+    only weakly reachable through ``ToolManager.instances``; a strong
+    reference there would keep it alive indefinitely.
+    """
     manager = ToolManager()
     manager_ref = weakref.ref(manager)
 
